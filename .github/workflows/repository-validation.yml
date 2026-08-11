@@ -1,0 +1,55 @@
+name: Repository validation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    name: Validate AI-agent repository governance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require governance files
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            AGENTS.md
+            README.md
+            prd.md
+            architecture-definition-document.md
+            docs/catatniaga-ai-agent-implementation-playbook-en.md
+            docs/DECISIONS.md
+            docs/KNOWN_CONFLICTS.md
+            docs/IMPLEMENTATION_STATUS.md
+            .github/pull_request_template.md
+          )
+          for file in "${required[@]}"; do
+            test -f "$file" || { echo "Missing required file: $file"; exit 1; }
+          done
+
+      - name: Reject common secret files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find . -path ./.git -prune -o -type f \( -name '*.jks' -o -name '*.keystore' -o -name 'key.properties' -o -name '.env' \) -print -quit | grep -q .; then
+            echo 'Potential secret file detected.'
+            exit 1
+          fi
+
+      - name: Check stale PRD reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R --exclude-dir=.git -n 'prd-2\.md' .; then
+            echo 'Found stale reference to prd-2.md; use prd.md.'
+            exit 1
+          fi
+
+This commit adds governance scaffolding only. It does not delete or overwrite the existing PRD, architecture document, or AI playbook.
